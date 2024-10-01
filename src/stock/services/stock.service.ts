@@ -91,4 +91,27 @@ export class StockService {
         });
         return returns;
     }
+
+    // Add this method in the StockService class
+    async updateTrade(tradeId: string, tradeData: Partial<Trade>): Promise<Trade> {
+        const trade = await this.tradeModel.findById(tradeId).populate("stock");
+        if (!trade) throw new Error("Trade not found");
+
+        // Update the trade fields based on provided data
+        trade.type = tradeData.type || trade.type;
+        trade.price = tradeData.price || trade.price;
+        trade.quantity = tradeData.quantity || trade.quantity;
+        trade.date = tradeData.date || trade.date;
+
+        await trade.save();
+        return trade;
+    }
+
+    // Add this method in the StockService class
+    async deleteTrade(tradeId: string): Promise<void> {
+        const trade = await this.tradeModel.findById(tradeId);
+        if (!trade) throw new Error("Trade not found");
+
+        await this.tradeModel.deleteOne({ _id: tradeId });
+    }
 }
