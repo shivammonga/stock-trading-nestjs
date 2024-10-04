@@ -164,7 +164,7 @@ export class StockService {
         trade.type = tradeData.type || trade.type;
         trade.price = tradeData.price || trade.price;
         trade.quantity = tradeData.quantity || trade.quantity;
-        trade.date = tradeData.date || trade.date;
+        trade.createdAt = tradeData.createdAt || trade.createdAt;
 
         await trade.save();
         return trade;

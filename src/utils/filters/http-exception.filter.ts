@@ -44,6 +44,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
             }
         } else {
             let exceptionName = exception["name"];
+            console.log("---- exception is -------- ", exception);
+            console.log("---- exception name is ------- ", exceptionName);
+            console.log("-------- message are -------- ", exception["message"]);
+            // console.log("-------- expected are -------- ", exception["expected"]);
+            // console.log("-------- length are -------- ", exception["length"]);
+            // console.log("-------- limit are -------- ", exception["limit"]);
+            // console.log("-------- type are -------- ", exception["type"]);
             switch (exceptionName) {
                 case "ValidationError": {
                     errMessage[0] = exception["_message"] ?? "Something is missing";

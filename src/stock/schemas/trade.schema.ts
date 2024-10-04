@@ -7,7 +7,7 @@ export type TradeDocument = HydratedDocument<Trade>;
 @Schema({ timestamps: true })
 export class Trade {
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: "Stock", required: true })
-    stock: Stock;
+    stockId: Stock;
 
     @Prop({ required: true })
     type: string;
@@ -18,8 +18,8 @@ export class Trade {
     @Prop({ required: true })
     quantity: number;
 
-    @Prop({ required: true })
-    date: Date;
+    @Prop()
+    createdAt: Date;
 }
 
 export const TradeSchema = SchemaFactory.createForClass(Trade);
