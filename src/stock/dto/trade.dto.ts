@@ -4,7 +4,7 @@ export class TradeDto {
     @IsMongoId({ message: "Required valid stock details" })
     stockId: string;
 
-    @IsEnum(["BUY", "SOLD"], { message: "Invalid transaction" })
+    @IsEnum(["BUY", "SELL"], { message: "Invalid transaction" })
     type: string;
 
     @IsNumber({}, { message: "Invalid price" })

@@ -42,7 +42,7 @@ export class StockService {
                 portfolio["quantity"] = portfolio["quantity"] + tradeData.quantity;
             }
             if (tradeData.type === "SELL") {
-                portfolio["quantity"] -= tradeData.quantity; // Decrease quantity
+                portfolio["quantity"] = portfolio["quantity"] - tradeData.quantity; // Decrease quantity
             }
             return await portfolio.save();
         } else {

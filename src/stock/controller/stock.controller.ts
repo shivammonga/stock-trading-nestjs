@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Post, Put } from "@nestjs/common";
-import { Stock } from "../schemas/stock.schema";
 import { StockService } from "../services/stock.service";
 import { Trade } from "../schemas/trade.schema";
 import { TradeDto } from "../dto/trade.dto";
