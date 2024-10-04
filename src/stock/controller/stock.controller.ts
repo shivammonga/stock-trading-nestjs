@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Post, Put } from "@nestjs/common"
 import { Stock } from "../schemas/stock.schema";
 import { StockService } from "../services/stock.service";
 import { Trade } from "../schemas/trade.schema";
+import { TradeDto } from "../dto/trade.dto";
+import { StockDto } from "../dto/stock.dto";
 
 @Controller("stock")
 export class StockController {
@@ -9,7 +11,7 @@ export class StockController {
 
     // Add a stock
     @Post("/add")
-    async addStock(@Body() stockData: Partial<Stock>) {
+    async addStock(@Body() stockData: StockDto) {
         return await this.stockService.addStock(stockData);
     }
 
@@ -21,7 +23,7 @@ export class StockController {
 
     // Add a trade
     @Post("/addTrade")
-    async addTrade(@Body() tradeData: Partial<Trade>) {
+    async addTrade(@Body() tradeData: TradeDto) {
         return await this.stockService.addTrade(tradeData);
     }
 

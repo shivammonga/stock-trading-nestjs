@@ -4,6 +4,8 @@ import { Stock } from "../schemas/stock.schema";
 import { Model } from "mongoose";
 import { Trade } from "../schemas/trade.schema";
 import { Portfolio } from "../schemas/portfolio.schema";
+import { TradeDto } from "../dto/trade.dto";
+import { StockDto } from "../dto/stock.dto";
 
 @Injectable()
 export class StockService {
@@ -14,7 +16,7 @@ export class StockService {
     ) {}
 
     // Add a stock
-    async addStock(stockData: Partial<Stock>) {
+    async addStock(stockData: StockDto) {
         const stock = new this.stockModel(stockData);
         return await stock.save();
     }
@@ -25,44 +27,33 @@ export class StockService {
     }
 
     // Add a trade and update the user's portfolio
-    async addTrade(tradeData: Partial<Trade>): Promise<Trade> {
-        const stock = await this.stockModel.findOne({ symbol: tradeData.stock });
+    async addTrade(tradeData: TradeDto): Promise<any> {
+        const stock = await this.stockModel.findOne({ _id: tradeData.stockId });
         if (!stock) throw new Error("Stock not found");
 
-        const trade = new this.tradeModel({ ...tradeData, stock: stock._id });
+        const trade = new this.tradeModel(tradeData);
         await trade.save();
 
         // Update the portfolio
-        let portfolio = await this.portfolioModel.findOne();
-        if (!portfolio) {
-            portfolio = new this.portfolioModel({ holdings: [] });
-        }
-
-        // Check if the stock already exists in holdings
-        const holdingIndex = portfolio.holdings.findIndex(h => h.stockId.equals(stock._id));
-        if (holdingIndex !== -1) {
-            const holding = portfolio.holdings[holdingIndex];
+        let portfolio = await this.portfolioModel.findOne({ stockId: tradeData.stockId });
+        if (portfolio) {
             if (tradeData.type === "BUY") {
-                holding.quantity += tradeData.quantity; // Increase quantity
-                holding.avgPrice = (holding.avgPrice * holding.quantity + tradeData.price * tradeData.quantity) / (holding.quantity + tradeData.quantity); // Recalculate average price
-            } else if (tradeData.type === "SELL") {
-                holding.quantity -= tradeData.quantity; // Decrease quantity
+                portfolio["avgPrice"] = (portfolio["avgPrice"] * portfolio["quantity"] + tradeData.price * tradeData.quantity) / (portfolio["quantity"] + tradeData.quantity);
+                portfolio["quantity"] = portfolio["quantity"] + tradeData.quantity;
             }
-            if (holding.quantity <= 0) portfolio.holdings.splice(holdingIndex, 1); // Remove if quantity is 0
+            if (tradeData.type === "SELL") {
+                portfolio["quantity"] -= tradeData.quantity; // Decrease quantity
+            }
+            return await portfolio.save();
         } else {
-            // Add new holding if buying a new stock
-            if (tradeData.type === "BUY") {
-                portfolio.holdings.push({
-                    stockId: stock._id,
-                    symbol: stock.symbol,
-                    quantity: tradeData.quantity,
-                    avgPrice: tradeData.price,
-                });
-            }
+            let data = {
+                stockId: tradeData.stockId,
+                quantity: tradeData.quantity,
+                avgPrice: tradeData.price,
+            };
+            let portfolioDetails = new this.portfolioModel(data);
+            return await portfolioDetails.save();
         }
-
-        await portfolio.save();
-        return trade;
     }
 
     // Get the user's portfolio (current holdings)
@@ -72,24 +63,96 @@ export class StockService {
 
     // Get portfolio holdings
     async getHoldings() {
-        const portfolio = await this.getPortfolio();
-        return portfolio ? portfolio.holdings : [];
+        let pipeline = [
+            {
+                $lookup: {
+                    from: "portfolios",
+                    localField: "stockId",
+                    foreignField: "_id",
+                    as: "stockDetails",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$stockDetails",
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+            {
+                $project: {
+                    name: "$stockDetails.name",
+                    symbol: "$stockDetails.symbol",
+                    quantity: 1,
+                    avgPrice: 1,
+                },
+            },
+        ];
+        let portfolio = await this.portfolioModel.aggregate(pipeline);
+        return portfolio;
     }
 
     // Calculate returns for the portfolio
     async getReturns() {
-        const portfolio = await this.getPortfolio();
-        const returns = portfolio.holdings.map(holding => {
-            const finalPrice = 100; // Assume current market price is 100 for all stocks
-            const totalInvestment = holding.avgPrice * holding.quantity;
-            const currentValue = finalPrice * holding.quantity;
-            const returnPercentage = ((currentValue - totalInvestment) / totalInvestment) * 100;
-            return {
-                stock: holding.symbol,
-                returnPercentage,
-            };
-        });
-        return returns;
+        let pipeline = [
+            {
+                $facet: {
+                    investedValue: [
+                        {
+                            $project: {
+                                totalPrice: { $multiply: ["$quantity", "$avg_price"] },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalSum: { $sum: "$totalPrice" },
+                            },
+                        },
+                    ],
+                    currentValue: [
+                        {
+                            $lookup: {
+                                from: "stocks",
+                                localField: "stockId",
+                                foreignField: "_id",
+                                as: "stockDetails",
+                            },
+                        },
+                        {
+                            $unwind: {
+                                path: "$stockDetails",
+                                preserveNullAndEmptyArrays: false,
+                            },
+                        },
+                        {
+                            $project: {
+                                stockId: 1,
+                                quantity: 1,
+                                currentPrice: "$stockDetails.price",
+                                cumulativeAmount: { $multiply: ["$quantity", "$stockDetails.price"] },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalCumulativeAmount: { $sum: "$cumulativeAmount" },
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                $project: {
+                    investedValue: { $arrayElemAt: ["$investedValue.totalSum", 0] },
+                    currentValue: { $arrayElemAt: ["$currentValue.totalCumulativeAmount", 0] },
+                    PnL: {
+                        $subtract: [{ $arrayElemAt: ["$currentValue.totalCumulativeAmount", 0] }, { $arrayElemAt: ["$investedValue.totalSum", 0] }],
+                    },
+                },
+            },
+        ];
+        let investedValue = await this.portfolioModel.aggregate(pipeline);
+        return investedValue;
     }
 
     // Add this method in the StockService class

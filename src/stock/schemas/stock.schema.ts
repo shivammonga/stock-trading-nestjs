@@ -11,6 +11,9 @@ export class Stock {
     @Prop({ required: true })
     name: string;
 
+    @Prop({ required: true })
+    price: number;
+
     @Prop()
     createdAt: Date;
 
